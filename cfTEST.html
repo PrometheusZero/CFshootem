@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+	<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+	<meta name="description" content="Boilerplate" />
+	<title>CF Mock</title>
+	<style type="text/css">
+		canvas {
+			border: 1px solid black;
+		}
+	</style>
+</head>
+
+<body>
+	<div>
+		<canvas id="canv" width="1000" height="1000">
+			
+		</canvas>
+	</div>
+	
+	<script type="text/javascript">
+	
+		var ctx = document.getElementById('canv').getContext('2d');
+		ctx.font = '30px Arial';
+		
+		var HEIGHT = 1000;
+		var WIDTH = 1000;
+		var timeWhenGameStarted = Date.now();
+		
+		var frameCount = 0;
+		
+		var movepoint = {
+			x: 490,
+			y: 490
+		};
+		
+		var mousepoint = {
+			x:0,
+			y:0
+		}
+		
+		var player = {
+			type:'player',
+			x:490,
+			spdX:0,
+			y:490,
+			spdY:0,
+			name:'P',
+			hp:10,
+			width:20,
+			height:20,
+			color:'green',
+			//
+			firing:false,
+			aimAngle:0,
+			attackCounter:0
+		};
+		
+		var bulletList = {};
+		
+		getDistanceBetweenEntity = function(entity1, entity2){
+			var vx = entity1.x - entity2.x;
+			var vy = entity1.y - entity2.y;
+			return Math.sqrt(vx*vx+vy*vy);
+		};
+		
+		updateEntity = function(entity){
+			updateEntityPosition(entity);
+			drawEntity(entity);
+		};
+		
+		updateEntityPosition = function(entity){
+			if(entity.type === 'player'){
+				
+				if(getDistanceBetweenEntity(player,movepoint) < 5){
+					entity.x = movepoint.x;
+					entity.y = movepoint.y;
+					entity.spdX = 0;
+					entity.spdY = 0;
+					console.log("at location")
+				}else{
+					entity.x += entity.spdX;
+					entity.y += entity.spdY;
+				}
+				
+			}else{
+				entity.x += entity.spdX;
+				entity.y += entity.spdY;
+			}
+		};
+		
+		drawEntity = function(entity){
+			ctx.save();
+			ctx.fillStyle = entity.color;
+			ctx.fillRect(entity.x-entity.width/2,entity.y-entity.height/2,entity.width,entity.height);
+			ctx.restore();
+		};
+		
+		document.onmousemove = function(mouse){
+			mousepoint.x = mouse.clientX;
+			mousepoint.y = mouse.clientY;
+			updateAim();
+		};
+		
+		updateAim = function(){
+			var mouseX = mousepoint.x - document.getElementById('canv').getBoundingClientRect().left;
+			var mouseY = mousepoint.y - document.getElementById('canv').getBoundingClientRect().top;
+			
+			mouseX -= player.x;
+			mouseY -= player.y;
+			
+			player.aimAngle = Math.atan2(mouseY, mouseX) / Math.PI * 180;
+		}
+		
+		document.onclick = function(mouse){
+			movepoint.x = mouse.clientX - document.getElementById('canv').getBoundingClientRect().left;
+			movepoint.y = mouse.clientY - document.getElementById('canv').getBoundingClientRect().top;
+			
+			var diffX = movepoint.x - player.x;
+			var diffY = movepoint.y - player.y;
+			
+			var moveangle = Math.atan2(diffY, diffX) / Math.PI * 180;
+			
+			player.spdX = Math.cos(moveangle/180*Math.PI)*5;
+			player.spdY = Math.sin(moveangle/180*Math.PI)*5;
+		}
+		
+		document.onmousedown = function(mouse){ //on right click
+			if(mouse.button == 2){
+				mouse.preventDefault();
+				player.firing = true;
+			}
+		}
+		
+		document.onmouseup = function(mouse){
+			if(mouse.button == 2){
+				mouse.preventDefault();
+				player.firing = false;
+			}
+		}
+		
+		document.oncontextmenu = function(mouse){ //on right click
+			mouse.preventDefault();
+		}
+		
+		performAttack = function(actor){
+		if(actor.attackCounter > 5){		//every 1 sec
+				GenerateBullet(actor);
+				actor.attackCounter = 0;
+			}
+		}
+		
+		GenerateBullet = function(actor, aimOverwrite){
+			var x = actor.x;
+			var y = actor.y;
+			var height = 5;
+			var width = 5;
+			var id = Math.random();
+			
+			var angle;
+			if(aimOverwrite !== undefined){
+				angle = aimOverwrite;
+			}else{
+				angle = actor.aimAngle
+			}
+			var spdX = Math.cos(angle/180*Math.PI)*10;
+			var spdY = Math.sin(angle/180*Math.PI)*10;
+			Bullet(id,x,y,spdX,spdY,width,height);
+		}
+
+		Bullet = function (id,x,y,spdX,spdY,width,height){
+			var asd = {
+				type:'bullet',
+				x:x,
+				spdX:spdX,
+				y:y,
+				spdY:spdY,
+				name:'E',
+				id:id,
+				width:width,
+				height:height,
+				color:'black',
+				timer:0
+			};
+			bulletList[id] = asd;
+		};
+		
+		update = function(){
+			ctx.clearRect(0,0,WIDTH,HEIGHT);
+			frameCount++;
+			player.attackCounter++;
+			updateAim();
+			
+			if(player.firing){
+				performAttack(player);
+			}
+			
+			for(var key in bulletList){
+				updateEntity(bulletList[key]);
+				
+				var toRemove = false;
+				bulletList[key].timer++;
+				if(bulletList[key].timer > 100){
+					toRemove = true;
+				}
+				
+				if(toRemove){
+					delete bulletList[key];
+				}
+				
+			}
+			
+			updateEntity(player);
+		}
+		
+		setInterval(update,40);
+	
+	</script>
+</body>
